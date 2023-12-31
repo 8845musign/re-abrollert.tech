@@ -1,0 +1,156 @@
+---
+import appleTouchIconImage from '../assets/apple-touch-icon.png';
+import faviconImage from '../assets/favicon.svg';
+import defaultOpenGraphImage from '../assets/opengraph-image.png';
+import { SITE_LANG, SITE_REGION, SITE_TITLE, SITE_TWITTER_ID } from '../consts';
+
+interface SharedProps {
+  description?: string | undefined;
+  ogType?: 'website' | 'article' | undefined;
+  ogImage?: string | undefined;
+}
+
+type GeneralProps = SharedProps & {
+  title: string;
+  is404?: boolean | undefined;
+};
+
+type HomeProps = SharedProps & {
+  tagline: string;
+};
+
+type Props = GeneralProps | HomeProps;
+
+const { description, ogType = 'website', ogImage = defaultOpenGraphImage.src } = Astro.props;
+
+const is404 = 'is404' in Astro.props && Astro.props.is404;
+const canonicalURL = is404 ? null : new URL(Astro.url.pathname, Astro.site);
+
+const resolvedOgImage = new URL(ogImage, Astro.site);
+---
+
+<!--
+  https://bugs.chromium.org/p/chromium/issues/detail?id=1378462
+  https://schepp.dev/posts/smooth-scrolling-and-page-search/
+-->
+<html
+  class="break-words underline-offset-[0.125em] kerning-none [line-break:normal] focus-within:motion-reduce:scroll-smooth"
+  lang={SITE_LANG}
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+
+    <title
+      set:html={[
+        'title' in Astro.props && Astro.props.title,
+        SITE_TITLE,
+        'tagline' in Astro.props && Astro.props.tagline,
+      ]
+        .filter(Boolean)
+        .join(' &#8211; ')}
+    />
+
+    <script src="../scripts/main.ts"></script>
+
+    {description && <meta name="description" content={description} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content={`@${SITE_TWITTER_ID}`} />
+    <meta name="twitter:title" content={'title' in Astro.props ? Astro.props.title : SITE_TITLE} />
+
+    <meta
+      property="og:title"
+      content={'tagline' in Astro.props ? Astro.props.tagline : SITE_TITLE}
+    />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:image" content={resolvedOgImage} />
+    {canonicalURL && <meta property="og:url" content={canonicalURL} />}
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:site_name" content={SITE_TITLE} />
+    <meta property="og:locale" content={`${SITE_LANG}_${SITE_REGION}`} />
+
+    <link rel="apple-touch-icon" href={appleTouchIconImage.src} />
+    {canonicalURL && <link rel="canonical" href={canonicalURL} />}
+    <link rel="icon" href={faviconImage.src} type="image/svg+xml" />
+  </head>
+
+  <body class="min-h-svh bg-white text-zinc-900">
+    <header class="sticky top-0 z-10 bg-zinc-900 text-zinc-100/80" x-data="{ isMenuOpen: false }">
+      <nav class="wrapper flex items-center gap-x-6">
+        <a
+          class="mr-auto py-2 text-xl font-bold transition [&:any-link]:hover:text-zinc-100"
+          href={Astro.url.pathname !== '/' ? '/' : null}
+        >
+          {SITE_TITLE}
+        </a>
+        <button
+          class="py-2 text-sm transition hover:text-zinc-100 sm:hidden"
+          type="button"
+          @click="isMenuOpen = true">メニュー</button
+        >
+        {
+          [
+            ['はじめに', '/about/'],
+            ['お知らせ', '/news/'],
+            ['実績', '/work/'],
+          ].map(([label, href]) => (
+            <a class="hidden py-2 text-sm transition hover:text-zinc-100 sm:inline" href={href}>
+              {label}
+            </a>
+          ))
+        }
+      </nav>
+      <div x-dialog x-model="isMenuOpen" style="display: none;">
+        <template x-teleport="#js-overlay-container">
+          <div class="fixed inset-0 bg-black/80" x-dialog:overlay x-transition.opacity></div>
+        </template>
+        <div
+          class="absolute inset-x-0 top-full border-t border-zinc-800 bg-zinc-900 sm:hidden"
+          x-dialog:panel
+          x-collapse
+        >
+          <ul class="wrapper divide-y divide-zinc-800">
+            {
+              [
+                ['はじめに', '/about/'],
+                ['お知らせ', '/news/'],
+                ['実績', '/work/'],
+              ].map(([label, href]) => (
+                <li>
+                  <a class="block py-3 text-sm transition hover:text-zinc-100" href={href}>
+                    {label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <slot />
+
+    {/* https://css-tricks.com/a-clever-sticky-footer-technique/ */}
+    <footer class="sticky top-full mt-12 bg-zinc-900 py-2 text-zinc-100/80">
+      <nav class="wrapper">
+        <p class="flex flex-wrap justify-center gap-x-6">
+          {
+            [
+              ['ホーム', '/'],
+              ['はじめに', '/about/'],
+              ['お知らせ', '/news/'],
+              ['実績', '/work/'],
+            ].map(([label, href]) => (
+              <a class="py-2 text-sm transition hover:text-zinc-100" href={href}>
+                {label}
+              </a>
+            ))
+          }
+        </p>
+      </nav>
+    </footer>
+
+    {/* https://atfzl.com/don-t-attach-tooltips-to-document-body */}
+    <div id="js-overlay-container"></div>
+  </body>
+</html>
